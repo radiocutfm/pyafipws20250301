@@ -225,7 +225,16 @@ def inicializar_y_capturar_excepciones(func):
             # guardo datos de depuración
             if self.client:
                 self.XmlRequest = self.client.xml_request
-                self.XmlResponse = self.client.xml_response
+                xml_response = self.client.xml_response
+                if xml_response is None:
+                    xml_response = ""
+                elif isinstance(xml_response, bytes):
+                    xml_response = xml_response.decode("utf-8", "ignore")
+                elif not isinstance(xml_response, basestring):
+                    xml_response = str(xml_response)
+                if not xml_response.strip():
+                    xml_response = ""
+                self.XmlResponse = xml_response
 
     return capturar_errores_wrapper
 
