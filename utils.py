@@ -211,10 +211,29 @@ def inicializar_y_capturar_excepciones(func):
             if self.LanzarExcepciones:
                 raise
         except Exception as e:
+            parse_error_detail = ""
+            if "no element found" in str(e).lower() and self.client:
+                response = getattr(self.client, "response", None)
+                content = getattr(self.client, "content", None)
+                try:
+                    content_len = len(content or "")
+                except Exception:
+                    content_len = -1
+                status = "?"
+                if hasattr(response, "get"):
+                    status = response.get("status", response.get("Status", "?"))
+                elif response is not None:
+                    status = getattr(response, "status", "?")
+                parse_error_detail = " [HTTP status=%s, response_len=%s]" % (
+                    status,
+                    content_len,
+                )
             ex = exception_info()
             self.Traceback = ex.get("tb", "")
             try:
                 self.Excepcion = ex.get("msg", "")
+                if parse_error_detail and parse_error_detail not in self.Excepcion:
+                    self.Excepcion = (self.Excepcion or "").rstrip() + parse_error_detail
             except:
                 self.Excepcion = u"<no disponible>"
             if self.LanzarExcepciones:

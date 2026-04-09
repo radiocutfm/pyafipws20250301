@@ -29,6 +29,7 @@ import datetime
 import decimal
 import os
 import sys
+import time
 from pyafipws.utils import inicializar_y_capturar_excepciones, BaseWS, get_install_dir
 
 HOMO = False
@@ -250,81 +251,107 @@ class WSFEXv1(BaseWS):
     def Authorize(self, id):
         "Autoriza la factura cargada en memoria"
         f = self.factura
-        ret = self.client.FEXAuthorize(
-            Auth={"Token": self.Token, "Sign": self.Sign, "Cuit": self.Cuit},
-            Cmp={
-                "Id": id,
-                "Fecha_cbte": f["fecha_cbte"],
-                "Cbte_Tipo": f["tipo_cbte"],
-                "Punto_vta": f["punto_vta"],
-                "Cbte_nro": f["cbte_nro"],
-                "Tipo_expo": f["tipo_expo"],
-                "Permiso_existente": f["permiso_existente"],
-                "Permisos": f["permisos"]
-                and [
-                    {
-                        "Permiso": {
-                            "Id_permiso": p["id_permiso"],
-                            "Dst_merc": p["dst_merc"],
-                        }
+        auth_payload = {"Token": self.Token, "Sign": self.Sign, "Cuit": self.Cuit}
+        cmp_payload = {
+            "Id": id,
+            "Fecha_cbte": f["fecha_cbte"],
+            "Cbte_Tipo": f["tipo_cbte"],
+            "Punto_vta": f["punto_vta"],
+            "Cbte_nro": f["cbte_nro"],
+            "Tipo_expo": f["tipo_expo"],
+            "Permiso_existente": f["permiso_existente"],
+            "Permisos": f["permisos"]
+            and [
+                {
+                    "Permiso": {
+                        "Id_permiso": p["id_permiso"],
+                        "Dst_merc": p["dst_merc"],
                     }
-                    for p in f["permisos"]
-                ]
-                or None,
-                "Dst_cmp": f["pais_dst_cmp"],
-                "Cliente": f["nombre_cliente"],
-                "Cuit_pais_cliente": f["nro_doc"],
-                "Domicilio_cliente": f["domicilio_cliente"],
-                "Id_impositivo": f["id_impositivo"],
-                "Moneda_Id": f["moneda_id"],
-                "Moneda_ctz": f["moneda_ctz"],
-                "Obs_comerciales": f["obs_comerciales"],
-                "Imp_total": f["imp_total"],
-                "Obs": f["obs_generales"],
-                "Cmps_asoc": f["cbtes_asoc"]
-                and [
-                    {
-                        "Cmp_asoc": {
-                            "Cbte_tipo": c["cbte_tipo"],
-                            "Cbte_punto_vta": c["cbte_punto_vta"],
-                            "Cbte_nro": c["cbte_nro"],
-                            "Cbte_cuit": c["cbte_cuit"],
-                        }
+                }
+                for p in f["permisos"]
+            ]
+            or None,
+            "Dst_cmp": f["pais_dst_cmp"],
+            "Cliente": f["nombre_cliente"],
+            "Cuit_pais_cliente": f["nro_doc"],
+            "Domicilio_cliente": f["domicilio_cliente"],
+            "Id_impositivo": f["id_impositivo"],
+            "Moneda_Id": f["moneda_id"],
+            "Moneda_ctz": f["moneda_ctz"],
+            "Obs_comerciales": f["obs_comerciales"],
+            "Imp_total": f["imp_total"],
+            "Obs": f["obs_generales"],
+            "Cmps_asoc": f["cbtes_asoc"]
+            and [
+                {
+                    "Cmp_asoc": {
+                        "Cbte_tipo": c["cbte_tipo"],
+                        "Cbte_punto_vta": c["cbte_punto_vta"],
+                        "Cbte_nro": c["cbte_nro"],
+                        "Cbte_cuit": c["cbte_cuit"],
                     }
-                    for c in f["cbtes_asoc"]
-                ]
-                or None,
-                "Forma_pago": f["forma_pago"],
-                "Fecha_pago": f["fecha_pago"],
-                "Incoterms": f["incoterms"],
-                "Incoterms_Ds": f["incoterms_ds"],
-                "Idioma_cbte": f["idioma_cbte"],
-                "Items": [
-                    {
-                        "Item": {
-                            "Pro_codigo": d["codigo"],
-                            "Pro_ds": d["ds"],
-                            "Pro_qty": d["qty"],
-                            "Pro_umed": d["umed"],
-                            "Pro_precio_uni": d["precio"],
-                            "Pro_bonificacion": d["bonif"],
-                            "Pro_total_item": d["importe"],
-                        }
+                }
+                for c in f["cbtes_asoc"]
+            ]
+            or None,
+            "Forma_pago": f["forma_pago"],
+            "Fecha_pago": f["fecha_pago"],
+            "Incoterms": f["incoterms"],
+            "Incoterms_Ds": f["incoterms_ds"],
+            "Idioma_cbte": f["idioma_cbte"],
+            "Items": [
+                {
+                    "Item": {
+                        "Pro_codigo": d["codigo"],
+                        "Pro_ds": d["ds"],
+                        "Pro_qty": d["qty"],
+                        "Pro_umed": d["umed"],
+                        "Pro_precio_uni": d["precio"],
+                        "Pro_bonificacion": d["bonif"],
+                        "Pro_total_item": d["importe"],
                     }
-                    for d in f["detalles"]
-                ],
-                "Actividades": f["actividades"]
-                and [
-                    {
-                        "Actividad": {
-                            "Id": a["actividad_id"],
-                        }
+                }
+                for d in f["detalles"]
+            ],
+            "Actividades": f["actividades"]
+            and [
+                {
+                    "Actividad": {
+                        "Id": a["actividad_id"],
                     }
-                    for a in f["actividades"]
-                ]
-                or None,
-            },
-        )
+                }
+                for a in f["actividades"]
+            ]
+            or None,
+        }
+        try:
+            ret = self.client.FEXAuthorize(Auth=auth_payload, Cmp=cmp_payload)
+        except Exception as e:
+            xml_response = getattr(self.client, "xml_response", "")
+            if isinstance(xml_response, bytes):
+                xml_response = xml_response.decode("utf-8", "ignore")
+            else:
+                xml_response = str(xml_response or "")
+            if "no element found" in str(e).lower() and not xml_response.strip():
+                self.log(
+                    "FEXAuthorize devolvio XML vacio; intento recuperar CAE con FEXGetCMP "
+                    "(tipo=%s pto_vta=%s cbte=%s)"
+                    % (f["tipo_cbte"], f["punto_vta"], f["cbte_nro"])
+                )
+                for attempt in (1, 2, 3):
+                    try:
+                        cae = self.GetCMP(f["tipo_cbte"], f["punto_vta"], f["cbte_nro"])
+                        if cae:
+                            self.Reproceso = "S"
+                            self.Resultado = self.Resultado or "A"
+                            return cae
+                    except Exception:
+                        if attempt == 3:
+                            raise
+                    if attempt < 3:
+                        time.sleep(0.8)
+                raise
+            raise
 
         result = ret["FEXAuthorizeResult"]
         self.__analizar_errores(result)

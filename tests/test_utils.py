@@ -16,8 +16,9 @@ class DummyClient(object):
 
 
 class DummyWS(object):
-    def __init__(self, xml_response):
+    def __init__(self, xml_response, error_message="simulated parse error"):
         self.client = DummyClient("<request/>", xml_response)
+        self.error_message = error_message
         self.params_in = {}
         self.params_out = {}
         self.reintentos = 0
@@ -33,7 +34,7 @@ class DummyWS(object):
 
     @inicializar_y_capturar_excepciones
     def fail(self):
-        raise RuntimeError("simulated parse error")
+        raise RuntimeError(self.error_message)
 
 
 def test_wrapper_normalizes_blank_xml_response():
@@ -47,3 +48,12 @@ def test_wrapper_keeps_non_blank_xml_response():
     ws = DummyWS("<xml>ok</xml>".encode("utf-8"))
     ws.fail()
     assert ws.XmlResponse == "<xml>ok</xml>"
+
+
+def test_wrapper_adds_http_detail_for_empty_parse_error():
+    ws = DummyWS("\n", "ExpatError: no element found: line 2, column 0")
+    ws.client.response = {"status": "200"}
+    ws.client.content = "\n"
+    ws.fail()
+    assert "response_len=1" in ws.Excepcion
+    assert "HTTP status=200" in ws.Excepcion
