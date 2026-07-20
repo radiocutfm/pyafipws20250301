@@ -64,13 +64,13 @@ setup(
         "pysimplesoap==1.8.22;python_version > '3'",
         "cryptography==3.3.2;python_version <= '2.7'",
         "cryptography>=3.4.7;python_version > '3'",
-        "fpdf>=1.7.2",
+        "fpdf2>=2.7.8",
         "dbf>=0.88.019",
         "Pillow>=2.0.0",
         "tabulate>=0.8.5",
         "certifi>=2020.4.5.1",
         "qrcode>=6.1",
-        "future>=0.18.2",
+        "future>=1.0.0",
     ],
     extras_require={
         "opt": ["pywin32==304;sys_platform == 'win32' and python_version > '3'"]
